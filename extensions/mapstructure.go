@@ -8,7 +8,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func ToTimeHookFunc() mapstructure.DecodeHookFunc {
+func toTimeHookFunc() mapstructure.DecodeHookFunc {
 	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 		if t != reflect.TypeOf(time.Time{}) {
 			return data, nil
@@ -44,7 +44,7 @@ func Decode(input map[string]interface{}, result interface{}) error {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Metadata: nil,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			ToTimeHookFunc(),
+			toTimeHookFunc(),
 			stringToUUIDHookFunc()),
 		Result: result,
 	})
