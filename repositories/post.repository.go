@@ -19,6 +19,7 @@ const index = "posts"
 var PostRepository IPostRepository = &postRepository{}
 
 type IPostRepository interface {
+	FindPosts(buffer bytes.Buffer) ([]entities.Post, error)
 	FindPostByID(id uuid.UUID) (*entities.Post, error)
 	AddPost(id uuid.UUID, body []byte) error
 	UpdatePost(id uuid.UUID, body []byte) error
@@ -26,6 +27,51 @@ type IPostRepository interface {
 }
 
 type postRepository struct{}
+
+func (*postRepository) FindPosts(buffer bytes.Buffer) ([]entities.Post, error) {
+	response, err := data.ElasticSearch.Search(
+		data.ElasticSearch.Search.WithContext(context.Background()),
+		data.ElasticSearch.Search.WithIndex(index),
+		data.ElasticSearch.Search.WithBody(&buffer),
+	)
+
+	defer response.Body.Close()
+	if err != nil {
+		message := fmt.Errorf("error while fetching records from database, %s", err.Error())
+		extensions.Error(message.Error())
+		return nil, message
+	}
+
+	if response.IsError() {
+		message := fmt.Errorf("error indexing documents status: %s", response.Status())
+		extensions.Error(message.Error())
+		return nil, message
+	}
+
+	body := make(map[string]interface{})
+	if err = json.NewDecoder(response.Body).Decode(&body); err != nil {
+		message := fmt.Errorf("error parsing the response body: %s", err.Error())
+		extensions.Error(message.Error())
+		return nil, message
+	}
+
+	posts := []entities.Post{}
+	for _, hit := range body["hits"].(map[string]interface{})["hits"].([]interface{}) {
+		var post entities.Post
+		err = extensions.Decode(hit.(map[string]interface{})["_source"].(map[string]interface{}), &post)
+
+		if err != nil {
+			message := fmt.Errorf("error mapping from _source to entity: %s", err.Error())
+			extensions.Error(message.Error())
+			return nil, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	extensions.Info("done")
+	return posts, nil
+}
 
 func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 	var entity entities.Post
@@ -43,14 +89,13 @@ func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 	}
 
 	defer response.Body.Close()
-	fmt.Println(response.StatusCode)
 	if response.IsError() {
 		message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
 		extensions.Error(message.Error())
 		return nil, message
 	}
 
-	var body map[string]interface{}
+	body := make(map[string]interface{})
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		message := fmt.Errorf("error parsing the response body: %s", err.Error())
 		extensions.Error(message.Error())

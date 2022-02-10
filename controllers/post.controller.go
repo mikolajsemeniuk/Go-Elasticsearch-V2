@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"es/inputs"
+	"es/payloads"
 	"es/services"
 	"net/http"
 
@@ -22,7 +23,23 @@ type IPostController interface {
 type postController struct{}
 
 func (*postController) GetAllPosts(context *gin.Context) {
-	context.JSON(http.StatusOK, "GetAllPosts")
+	payloads, err := services.PostService.FindPosts()
+
+	if err != nil {
+		// TODO: Add logger
+		context.JSON(http.StatusBadRequest, gin.H{
+			"data":    nil,
+			"message": "error occured",
+			"errors":  []string{err.Error()},
+		})
+		return
+	}
+
+	context.JSON(http.StatusOK, gin.H{
+		"data":    payloads,
+		"message": "Posts fetched",
+		"errors":  []string{},
+	})
 }
 
 func (*postController) GetPostById(context *gin.Context) {
@@ -41,8 +58,8 @@ func (*postController) GetPostById(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusOK, gin.H{
-		"data":    payload,
-		"message": "Post added",
+		"data":    []*payloads.Post{payload},
+		"message": "Post fetched",
 		"errors":  []string{},
 	})
 }
@@ -64,7 +81,7 @@ func (*postController) AddPost(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusOK, gin.H{
-		"data":    nil,
+		"data":    []payloads.Post{},
 		"message": "Post added",
 		"errors":  []string{},
 	})
@@ -89,7 +106,7 @@ func (*postController) UpdatePost(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusOK, gin.H{
-		"data":    nil,
+		"data":    []payloads.Post{},
 		"message": "Post updated",
 		"errors":  []string{},
 	})
@@ -111,7 +128,7 @@ func (*postController) RemovePost(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusOK, gin.H{
-		"data":    nil,
+		"data":    []payloads.Post{},
 		"message": "Post removed",
 		"errors":  []string{},
 	})

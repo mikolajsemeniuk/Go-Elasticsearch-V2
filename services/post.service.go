@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"es/entities"
 	"es/inputs"
@@ -16,6 +17,7 @@ import (
 var PostService IPostService = &postService{}
 
 type IPostService interface {
+	FindPosts() ([]payloads.Post, error)
 	FindPostByID(id uuid.UUID) (*payloads.Post, error)
 	AddPost(input inputs.Post) error
 	UpdatePost(id uuid.UUID, input inputs.Post) error
@@ -23,6 +25,32 @@ type IPostService interface {
 }
 
 type postService struct{}
+
+func (*postService) FindPosts() ([]payloads.Post, error) {
+	payloads := []payloads.Post{}
+	buffer := bytes.Buffer{}
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match_all": map[string]interface{}{},
+		},
+	}
+
+	if err := json.NewEncoder(&buffer).Encode(query); err != nil {
+		// TODO: Add Logger here
+		return nil, fmt.Errorf("error while encoding to buffer from json, %s", err.Error())
+	}
+
+	entities, err := repositories.PostRepository.FindPosts(buffer)
+	if err != nil {
+		// TODO: Add Logger here
+		return nil, err
+	}
+
+	copier.Copy(&payloads, &entities)
+
+	return payloads, nil
+}
 
 func (*postService) FindPostByID(id uuid.UUID) (*payloads.Post, error) {
 	payload := payloads.Post{}
