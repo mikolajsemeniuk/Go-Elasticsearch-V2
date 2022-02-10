@@ -92,6 +92,7 @@ func (*postController) UpdatePost(context *gin.Context) {
 	id, _ := uuid.Parse(param)
 	input := inputs.Post{
 		Title: "updated title",
+		Done:  true,
 	}
 
 	err := services.PostService.UpdatePost(id, input)

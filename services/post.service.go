@@ -31,9 +31,9 @@ func (*postService) FindPosts() ([]payloads.Post, error) {
 	buffer := bytes.Buffer{}
 
 	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"match_all": map[string]interface{}{},
-		},
+		// "query": map[string]interface{}{
+		// "match_all": map[string]interface{}{},
+		// },
 	}
 
 	if err := json.NewEncoder(&buffer).Encode(query); err != nil {
