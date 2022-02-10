@@ -74,43 +74,67 @@ func (*postRepository) FindPosts(buffer bytes.Buffer) ([]entities.Post, error) {
 }
 
 func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
-	var entity entities.Post
+	channel := make(chan struct {
+		*entities.Post
+		error
+	})
+	go func() {
+		var entity entities.Post
 
-	request := esapi.GetRequest{
-		Index:      index,
-		DocumentID: id.String(),
-	}
+		request := esapi.GetRequest{
+			Index:      index,
+			DocumentID: id.String(),
+		}
 
-	response, err := request.Do(context.Background(), data.ElasticSearch)
-	if err != nil {
-		message := fmt.Errorf("error while fetching record from database, %s", err.Error())
-		extensions.Error(message.Error())
-		return nil, message
-	}
+		response, err := request.Do(context.Background(), data.ElasticSearch)
+		if err != nil {
+			message := fmt.Errorf("error while fetching record from database, %s", err.Error())
+			extensions.Error(message.Error())
+			channel <- struct {
+				*entities.Post
+				error
+			}{nil, message}
+		}
 
-	defer response.Body.Close()
-	if response.IsError() {
-		message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
-		extensions.Error(message.Error())
-		return nil, message
-	}
+		defer response.Body.Close()
+		if response.IsError() {
+			message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
+			extensions.Error(message.Error())
+			channel <- struct {
+				*entities.Post
+				error
+			}{nil, message}
+		}
 
-	body := make(map[string]interface{})
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		message := fmt.Errorf("error parsing the response body: %s", err.Error())
-		extensions.Error(message.Error())
-		return nil, message
-	}
+		body := make(map[string]interface{})
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			message := fmt.Errorf("error parsing the response body: %s", err.Error())
+			extensions.Error(message.Error())
+			channel <- struct {
+				*entities.Post
+				error
+			}{nil, message}
+		}
 
-	err = extensions.Decode(body["_source"].(map[string]interface{}), &entity)
-	if err != nil {
-		message := fmt.Errorf("error mapping from _source to entity: %s", err.Error())
-		extensions.Error(message.Error())
-		return nil, message
-	}
+		err = extensions.Decode(body["_source"].(map[string]interface{}), &entity)
+		if err != nil {
+			message := fmt.Errorf("error mapping from _source to entity: %s", err.Error())
+			extensions.Error(message.Error())
+			channel <- struct {
+				*entities.Post
+				error
+			}{nil, message}
+		}
+
+		channel <- struct {
+			*entities.Post
+			error
+		}{&entity, nil}
+	}()
 
 	extensions.Info("done")
-	return &entity, nil
+	response := <-channel
+	return response.Post, response.error
 }
 
 func (*postRepository) AddPost(id uuid.UUID, body []byte) error {
