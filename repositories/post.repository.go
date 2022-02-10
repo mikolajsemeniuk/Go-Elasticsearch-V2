@@ -94,6 +94,7 @@ func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 				*entities.Post
 				error
 			}{nil, message}
+			return
 		}
 
 		defer response.Body.Close()
@@ -104,6 +105,7 @@ func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 				*entities.Post
 				error
 			}{nil, message}
+			return
 		}
 
 		body := make(map[string]interface{})
@@ -114,6 +116,7 @@ func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 				*entities.Post
 				error
 			}{nil, message}
+			return
 		}
 
 		err = extensions.Decode(body["_source"].(map[string]interface{}), &entity)
@@ -124,6 +127,7 @@ func (*postRepository) FindPostByID(id uuid.UUID) (*entities.Post, error) {
 				*entities.Post
 				error
 			}{nil, message}
+			return
 		}
 
 		channel <- struct {
@@ -153,6 +157,7 @@ func (*postRepository) AddPost(id uuid.UUID, body []byte) error {
 			message := fmt.Errorf("error while adding to database, %s", err.Error())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		defer response.Body.Close()
@@ -160,6 +165,7 @@ func (*postRepository) AddPost(id uuid.UUID, body []byte) error {
 			message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		extensions.Info("done")
@@ -186,6 +192,7 @@ func (*postRepository) UpdatePost(id uuid.UUID, body []byte) error {
 			message := fmt.Errorf("error while updating to database, %s", err.Error())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		defer response.Body.Close()
@@ -193,6 +200,7 @@ func (*postRepository) UpdatePost(id uuid.UUID, body []byte) error {
 			message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		extensions.Info("done")
@@ -215,6 +223,7 @@ func (postRepository) RemovePost(id uuid.UUID) error {
 			message := fmt.Errorf("error while removing from database, %s", err.Error())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		defer response.Body.Close()
@@ -222,6 +231,7 @@ func (postRepository) RemovePost(id uuid.UUID) error {
 			message := fmt.Errorf("error indexing document with id: %s, status: %s", id, response.Status())
 			extensions.Info(message.Error())
 			channel <- message
+			return
 		}
 
 		extensions.Info("done")
